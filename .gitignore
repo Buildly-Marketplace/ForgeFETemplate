@@ -1,0 +1,49 @@
+# ForgeAppTemplate .gitignore
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Forge state files
+.forge-port
+.forge-python.pid
+
+# Buildly / Buster AI-native workflow state
+# Volatile machine state is ignored; human-readable docs under
+# devdocs/generated/ stay tracked and reviewable.
+.buildly/sync/pending/
+.buildly/adoption/*.json
+
+# Test artifacts (reports, logs)
+artifacts/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Keep tracked directories
+!artifacts/.gitkeep
+!marketplace/screenshots/.gitkeep

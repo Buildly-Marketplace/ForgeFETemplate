@@ -1,0 +1,37 @@
+# ForgeAppTemplate Docker Compose Configuration
+# Provides app and e2e services for development and CI
+
+services:
+  # Application server
+  app:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.app
+    ports:
+      - "${FORGE_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  # E2E test runner (Robot Framework with Browser library)
+  e2e:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.e2e
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      - BASE_URL=http://app:8000
+    volumes:
+      # Mount test files
+      - ../tests/robot:/work/tests/robot:ro
+      # Mount output directories
+      - ../artifacts:/work/artifacts
+      - ../marketplace/screenshots:/work/marketplace/screenshots
+    # Default command can be overridden via docker compose run
+    command: ["robot", "--outputdir", "/work/artifacts", "/work/tests/robot/smoke.robot"]

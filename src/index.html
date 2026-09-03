@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForgeAppTemplate</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .app-root {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 16px;
+            font-size: 2rem;
+        }
+        
+        p {
+            color: #666;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        
+        .primary-action {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .primary-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .primary-action:active {
+            transform: translateY(0);
+        }
+        
+        .panel {
+            display: none;
+            margin-top: 24px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            text-align: left;
+        }
+        
+        .panel.visible {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .panel h3 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .panel p {
+            color: #555;
+            margin-bottom: 0;
+            font-size: 0.9rem;
+        }
+        
+        .status {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 6px 12px;
+            background: #d4edda;
+            color: #155724;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-root" data-testid="app-root">
+        <h1>🔨 ForgeAppTemplate</h1>
+        <p>
+            A minimal starter template for Buildly Marketplace submissions.
+            Click the button below to see it in action.
+        </p>
+        
+        <button class="primary-action" data-testid="primary-action" onclick="togglePanel()">
+            Get Started
+        </button>
+        
+        <div class="panel" data-testid="panel" id="panel">
+            <h3>✓ Panel Activated</h3>
+            <p>
+                This panel demonstrates interactive functionality that can be
+                tested with Robot Framework Browser tests. The test suite verifies
+                that clicking the primary action reveals this panel.
+            </p>
+            <span class="status">Ready for Marketplace</span>
+        </div>
+    </div>
+    
+    <script>
+        function togglePanel() {
+            const panel = document.getElementById('panel');
+            panel.classList.toggle('visible');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+# ForgeAppTemplate CI Pipeline
+# Runs E2E tests and generates screenshots on every push/PR
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: E2E Tests & Screenshots
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: |
+          chmod +x ops/startup.sh
+          chmod +x scripts/*.sh
+
+      - name: Create output directories
+        run: |
+          mkdir -p artifacts/robot
+          mkdir -p marketplace/screenshots
+
+      - name: Run E2E tests (Docker)
+        run: ./scripts/test-e2e-docker.sh
+
+      - name: Generate screenshots (Docker)
+        run: ./scripts/screenshots-docker.sh
+
+      - name: Verify screenshots exist
+        run: |
+          echo "Checking for required screenshots..."
+          test -f marketplace/screenshots/01-home.png || (echo "Missing 01-home.png" && exit 1)
+          test -f marketplace/screenshots/02-primary-action.png || (echo "Missing 02-primary-action.png" && exit 1)
+          echo "All required screenshots present!"
+          ls -la marketplace/screenshots/
+
+      - name: Upload Robot reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: robot-reports
+          path: artifacts/robot/
+          retention-days: 14
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marketplace-screenshots
+          path: marketplace/screenshots/
+          retention-days: 14
+
+  validate-manifest:
+    name: Validate BUILDLY.yaml
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate YAML syntax
+        run: |
+          python3 -c "
+          import yaml
+          import sys
+          
+          try:
+              with open('BUILDLY.yaml', 'r') as f:
+                  manifest = yaml.safe_load(f)
+              
+              # Check required fields
+              required = ['id', 'name', 'description', 'version', 'license']
+              missing = [f for f in required if f not in manifest]
+              
+              if missing:
+                  print(f'Missing required fields: {missing}')
+                  sys.exit(1)
+              
+              print('BUILDLY.yaml is valid!')
+              print(f'  id: {manifest[\"id\"]}')
+              print(f'  name: {manifest[\"name\"]}')
+              print(f'  version: {manifest[\"version\"]}')
+              
+          except yaml.YAMLError as e:
+              print(f'YAML syntax error: {e}')
+              sys.exit(1)
+          except Exception as e:
+              print(f'Validation error: {e}')
+              sys.exit(1)
+          "
+
+      - name: Check for npm/node artifacts
+        run: |
+          echo "Checking for prohibited npm/node files..."
+          if [[ -f package.json ]]; then
+            echo "ERROR: package.json found - npm dependencies not allowed"
+            exit 1
+          fi
+          if [[ -f package-lock.json ]]; then
+            echo "ERROR: package-lock.json found - npm dependencies not allowed"
+            exit 1
+          fi
+          if [[ -d node_modules ]]; then
+            echo "ERROR: node_modules found - npm dependencies not allowed"
+            exit 1
+          fi
+          echo "No npm/node artifacts found - OK!"

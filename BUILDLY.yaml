@@ -1,0 +1,129 @@
+# BUILDLY.yaml - Marketplace Manifest
+# This file defines the metadata and validation requirements for
+# Buildly Marketplace submissions.
+
+# Required: Unique identifier for this template
+id: forge-app-template
+
+# Required: Display name shown in marketplace
+name: ForgeAppTemplate
+
+# Required: Short description (max 160 chars)
+description: A minimal starter template for Buildly Marketplace submissions with Robot Framework Browser tests
+
+# Required: Semantic version
+version: 1.0.0
+
+# Required: Template category
+category: starter
+
+# Required: List of tags for discovery
+tags:
+  - template
+  - starter
+  - python
+  - robot-framework
+  - playwright
+  - e2e-testing
+
+# Required: Author information
+author:
+  name: Buildly Marketplace
+  email: marketplace@buildly.io
+  url: https://buildly.io
+
+# Required: License identifier (SPDX)
+license: MIT
+
+# Required: Repository URL
+repository: https://github.com/Buildly-Marketplace/ForgeAppTemplate
+
+# Required: Minimum supported versions
+requirements:
+  python: ">=3.10"
+  docker: ">=20.10"
+
+# -----------------------------------------------------------------------------
+# Test Commands
+# Marketplace CI will run these to validate submissions
+# -----------------------------------------------------------------------------
+
+tests:
+  # Docker-first mode (recommended, CI default)
+  docker:
+    e2e: ./scripts/test-e2e-docker.sh
+    screenshots: ./scripts/screenshots-docker.sh
+  
+  # Python-first mode (optional, for local development)
+  python:
+    # Requires: ./ops/startup.sh start python
+    e2e: ./scripts/test-e2e-python.sh
+    screenshots: ./scripts/screenshots-python.sh
+
+# -----------------------------------------------------------------------------
+# App Control
+# Single entrypoint for starting/stopping the application
+# -----------------------------------------------------------------------------
+
+app:
+  control: ./ops/startup.sh
+  modes:
+    - python
+    - docker
+  commands:
+    - start
+    - stop
+    - restart
+    - status
+
+# -----------------------------------------------------------------------------
+# Screenshots
+# Canonical screenshots for marketplace listing
+# Generated automatically by Robot Framework tests
+# -----------------------------------------------------------------------------
+
+screenshots:
+  directory: marketplace/screenshots
+  required:
+    - 01-home.png
+    - 02-primary-action.png
+  generator: ./scripts/screenshots-docker.sh
+
+# -----------------------------------------------------------------------------
+# Artifacts
+# Test outputs and reports
+# -----------------------------------------------------------------------------
+
+artifacts:
+  directory: artifacts
+  contents:
+    - robot/        # Robot Framework reports and logs
+
+# -----------------------------------------------------------------------------
+# UI Test Hooks
+# Required data-testid attributes for E2E tests
+# -----------------------------------------------------------------------------
+
+ui_hooks:
+  required:
+    - app-root          # Main application container
+    - primary-action    # Primary call-to-action button
+    - panel             # Content panel revealed by primary action
+
+# -----------------------------------------------------------------------------
+# Validation Rules
+# Criteria for marketplace acceptance
+# -----------------------------------------------------------------------------
+
+validation:
+  # All E2E tests must pass
+  tests_must_pass: true
+  
+  # Required screenshots must exist after generation
+  screenshots_required: true
+  
+  # BUILDLY.yaml must be valid
+  manifest_required: true
+  
+  # No npm/node dependencies allowed
+  no_npm: true
