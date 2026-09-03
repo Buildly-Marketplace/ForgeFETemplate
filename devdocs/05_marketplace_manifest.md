@@ -49,9 +49,30 @@ category: starter  # or: integration, component, full-stack
 
 # Discoverable tags
 tags:
-  - python
-  - api
+  - react
+  - frontend
   - dashboard
+```
+
+### Frontend
+
+Frontend submissions declare which framework they use and where the build
+lands. CI reads `build_dir` when assembling the static image, so it must match
+what `npm run build` actually writes.
+
+```yaml
+frontend:
+  # One of: react | vue | angular | svelte | react-native-web | other
+  framework: react
+  # Vite/React/Vue: dist   Angular: dist/<project-name>
+  # CRA: build             Next (static export): out
+  build_dir: dist
+  # These npm script names are a contract -- ops/startup.sh, the Dockerfile
+  # and CI all invoke them. Keep the names when you swap the framework.
+  scripts:
+    dev: npm run dev
+    build: npm run build
+    unit: npm test
 ```
 
 ### Author
@@ -84,17 +105,20 @@ tests:
     e2e: ./scripts/test-e2e-docker.sh
     screenshots: ./scripts/screenshots-docker.sh
   
-  # Python-first (optional, for local dev)
-  python:
-    e2e: ./scripts/test-e2e-python.sh
-    screenshots: ./scripts/screenshots-python.sh
+  # Node-first (optional, for local dev)
+  node:
+    e2e: ./scripts/test-e2e-node.sh
+    screenshots: ./scripts/screenshots-node.sh
+    unit: npm test
 ```
 
 ### Requirements
 
 - Docker test commands are **required**
 - Commands must exit 0 on success, non-zero on failure
-- No npm or Node.js dependencies allowed
+- A lockfile (`package-lock.json`) must be committed, so CI installs the same
+  dependency tree you built against
+- `node_modules/` must **not** be committed
 
 ## App Control
 
@@ -104,7 +128,7 @@ Define the single entrypoint for app control:
 app:
   control: ./ops/startup.sh
   modes:
-    - python
+    - node
     - docker
   commands:
     - start
@@ -153,14 +177,38 @@ ui_hooks:
 
 These hooks ensure tests can reliably find elements regardless of styling changes.
 
-### Adding Hooks to HTML
+### Adding Hooks to a Component
+
+The attribute name is the same in every framework this template targets --
+only the surrounding syntax changes.
+
+```jsx
+// React / React Native Web
+<main data-testid="app-root">
+  <button data-testid="primary-action" onClick={toggle}>Click Me</button>
+  {open && <section data-testid="panel">Panel Content</section>}
+</main>
+```
 
 ```html
-<div data-testid="app-root">
-  <button data-testid="primary-action">Click Me</button>
-  <div data-testid="panel">Panel Content</div>
-</div>
+<!-- Vue -->
+<main data-testid="app-root">
+  <button data-testid="primary-action" @click="toggle">Click Me</button>
+  <section v-if="open" data-testid="panel">Panel Content</section>
+</main>
 ```
+
+```html
+<!-- Angular -->
+<main data-testid="app-root">
+  <button data-testid="primary-action" (click)="toggle()">Click Me</button>
+  <section *ngIf="open" data-testid="panel">Panel Content</section>
+</main>
+```
+
+Render the panel conditionally rather than hiding it with CSS. `smoke.robot`
+asserts the panel is not visible before the primary action is clicked, and a
+merely-hidden element can still report as present.
 
 ## Validation Rules
 
@@ -169,45 +217,58 @@ validation:
   tests_must_pass: true       # All E2E tests must pass
   screenshots_required: true  # Required screenshots must exist
   manifest_required: true     # BUILDLY.yaml must be valid
-  no_npm: true                # No npm/node dependencies
+  lockfile_required: true     # package-lock.json must be committed
+  ui_hooks_required: true     # Every hook in ui_hooks.required must exist in src/
 ```
 
 ## Complete Example
 
 ```yaml
-id: forge-app-template
-name: ForgeAppTemplate
-description: A minimal starter template for Buildly Marketplace
+id: forge-fe-template
+name: ForgeFETemplate
+description: A frontend starter template for Buildly Marketplace submissions
 version: 1.0.0
 category: starter
 
 tags:
   - template
   - starter
-  - python
+  - frontend
+  - react
 
 author:
   name: Buildly Marketplace
   email: marketplace@buildly.io
 
 license: MIT
-repository: https://github.com/Buildly-Marketplace/ForgeAppTemplate
+repository: https://github.com/Buildly-Marketplace/ForgeFETemplate
 
 requirements:
-  python: ">=3.10"
+  node: ">=20"
+  npm: ">=10"
   docker: ">=20.10"
+  python: ">=3.10"   # Robot/Playwright test runner only, not the app
+
+frontend:
+  framework: react
+  build_dir: dist
+  scripts:
+    dev: npm run dev
+    build: npm run build
+    unit: npm test
 
 tests:
   docker:
     e2e: ./scripts/test-e2e-docker.sh
     screenshots: ./scripts/screenshots-docker.sh
-  python:
-    e2e: ./scripts/test-e2e-python.sh
-    screenshots: ./scripts/screenshots-python.sh
+  node:
+    e2e: ./scripts/test-e2e-node.sh
+    screenshots: ./scripts/screenshots-node.sh
+    unit: npm test
 
 app:
   control: ./ops/startup.sh
-  modes: [python, docker]
+  modes: [node, docker]
   commands: [start, stop, restart, status]
 
 screenshots:
@@ -227,7 +288,8 @@ validation:
   tests_must_pass: true
   screenshots_required: true
   manifest_required: true
-  no_npm: true
+  lockfile_required: true
+  ui_hooks_required: true
 ```
 
 ## Validation
@@ -267,6 +329,29 @@ Validate YAML syntax:
 python3 -c "import yaml; yaml.safe_load(open('BUILDLY.yaml'))"
 ```
 
-### "npm dependency detected"
+### "commit a lockfile"
 
-Remove any `package.json`, `node_modules`, or `npm` references. Use `robotframework-browser-batteries` for Playwright without npm.
+CI installs with `npm ci`, which requires `package-lock.json`. Run `npm install`
+once and commit the lockfile it produces.
+
+### "node_modules is committed"
+
+Add `node_modules/` to `.gitignore` and remove it from the index:
+
+```bash
+git rm -r --cached node_modules
+```
+
+### "MISSING: <hook> (declared in BUILDLY.yaml ui_hooks)"
+
+A `data-testid` listed under `ui_hooks.required` is absent from `src/`. Either
+restore the attribute or update `ui_hooks` and the Robot suites together --
+they must agree.
+
+### App works with `npm run dev` but the Docker image 404s
+
+`frontend.build_dir` does not match where `npm run build` writes. Check the
+output directory your framework uses (Vite `dist`, CRA `build`, Angular
+`dist/<project-name>`, Next static export `out`) and set both
+`frontend.build_dir` in `BUILDLY.yaml` and the `BUILD_DIR` build arg in
+`ops/docker-compose.yml`.

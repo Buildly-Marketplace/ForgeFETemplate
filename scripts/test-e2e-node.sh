@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 #
-# scripts/test-e2e-python.sh
-# Run Robot Framework E2E tests using local Python environment
+# scripts/test-e2e-node.sh
+# Run Robot Framework E2E tests against a locally-running dev server.
 #
 # Prerequisites:
-# 1. App must be running: ./ops/startup.sh start python
-# 2. Python 3.x must be installed
-#
-# This script will:
-# 1. Set up a virtual environment if needed
-# 2. Install Robot Framework dependencies
-# 3. Initialize Playwright browsers
-# 4. Run smoke tests against the local server
+#   1. The app is running: ./ops/startup.sh start node
+#   2. Python 3.x is available -- for the TEST RUNNER only. Robot Framework and
+#      Playwright are Python tools; the application under test is pure
+#      JavaScript and never sees them. Use the Docker path
+#      (./scripts/test-e2e-docker.sh) if you would rather not install them.
 #
 
 set -e
@@ -22,7 +19,6 @@ VENV_DIR="$REPO_ROOT/.venv"
 PORT_FILE="$REPO_ROOT/.forge-port"
 REQUIREMENTS="$REPO_ROOT/tests/robot/requirements.txt"
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -34,7 +30,6 @@ log_success() { echo -e "${GREEN}[test-e2e]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[test-e2e]${NC} $1"; }
 log_error() { echo -e "${RED}[test-e2e]${NC} $1" >&2; }
 
-# Determine port
 if [[ -f "$PORT_FILE" ]]; then
     PORT=$(cat "$PORT_FILE")
 else
@@ -43,38 +38,31 @@ fi
 
 BASE_URL="http://localhost:$PORT"
 
-# Check if app is running
 log_info "Checking if app is running at $BASE_URL..."
 if ! curl -s "$BASE_URL" &>/dev/null; then
     log_error "App is not running at $BASE_URL"
-    log_info "Start it with: ./ops/startup.sh start python"
+    log_info "Start it with: ./ops/startup.sh start node"
     exit 1
 fi
 log_success "App is running"
 
-# Set up virtual environment
 if [[ ! -d "$VENV_DIR" ]]; then
-    log_info "Creating virtual environment..."
+    log_info "Creating virtual environment for the test runner..."
     python3 -m venv "$VENV_DIR"
 fi
 
-# Activate venv
 source "$VENV_DIR/bin/activate"
 
-# Install dependencies
 log_info "Installing Robot Framework dependencies..."
 pip install -q -r "$REQUIREMENTS"
 
-# Initialize Browser library (idempotent)
 log_info "Initializing Playwright browsers..."
 rfbrowser init 2>/dev/null || {
     log_warn "Browser init had warnings (may be already initialized)"
 }
 
-# Ensure output directory
 mkdir -p "$REPO_ROOT/artifacts/robot"
 
-# Run tests
 log_info "Running smoke tests against $BASE_URL..."
 cd "$REPO_ROOT"
 

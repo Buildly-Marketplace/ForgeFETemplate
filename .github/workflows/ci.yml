@@ -1,5 +1,6 @@
-# ForgeAppTemplate CI Pipeline
-# Runs E2E tests and generates screenshots on every push/PR
+# ForgeFETemplate CI Pipeline
+# Lints and unit-tests the frontend, then runs E2E tests and generates
+# marketplace screenshots against the real built app.
 
 name: CI
 
@@ -10,10 +11,38 @@ on:
     branches: [main, master]
 
 jobs:
+  unit:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        # `npm ci` needs a lockfile; fall back so a freshly-generated template
+        # is not dead on arrival before its first commit of package-lock.json.
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test --if-present
+
   test:
     name: E2E Tests & Screenshots
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,7 +90,7 @@ jobs:
   validate-manifest:
     name: Validate BUILDLY.yaml
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,24 +105,31 @@ jobs:
           python3 -c "
           import yaml
           import sys
-          
+
           try:
               with open('BUILDLY.yaml', 'r') as f:
                   manifest = yaml.safe_load(f)
-              
+
               # Check required fields
-              required = ['id', 'name', 'description', 'version', 'license']
+              required = ['id', 'name', 'description', 'version', 'license', 'frontend']
               missing = [f for f in required if f not in manifest]
-              
+
               if missing:
                   print(f'Missing required fields: {missing}')
                   sys.exit(1)
-              
+
+              fe = manifest['frontend']
+              for field in ('framework', 'build_dir'):
+                  if field not in fe:
+                      print(f'frontend.{field} is required')
+                      sys.exit(1)
+
               print('BUILDLY.yaml is valid!')
               print(f'  id: {manifest[\"id\"]}')
               print(f'  name: {manifest[\"name\"]}')
               print(f'  version: {manifest[\"version\"]}')
-              
+              print(f'  framework: {fe[\"framework\"]}')
+
           except yaml.YAMLError as e:
               print(f'YAML syntax error: {e}')
               sys.exit(1)
@@ -102,19 +138,35 @@ jobs:
               sys.exit(1)
           "
 
-      - name: Check for npm/node artifacts
+      - name: Check package.json and lockfile
         run: |
-          echo "Checking for prohibited npm/node files..."
-          if [[ -f package.json ]]; then
-            echo "ERROR: package.json found - npm dependencies not allowed"
+          echo "Checking frontend manifests..."
+          if [[ ! -f package.json ]]; then
+            echo "ERROR: package.json is required for a frontend submission"
             exit 1
           fi
-          if [[ -f package-lock.json ]]; then
-            echo "ERROR: package-lock.json found - npm dependencies not allowed"
+          if [[ ! -f package-lock.json && ! -f npm-shrinkwrap.json ]]; then
+            echo "ERROR: commit a lockfile so CI installs the tree you built against"
             exit 1
           fi
           if [[ -d node_modules ]]; then
-            echo "ERROR: node_modules found - npm dependencies not allowed"
+            echo "ERROR: node_modules is committed - add it to .gitignore"
             exit 1
           fi
-          echo "No npm/node artifacts found - OK!"
+          echo "Frontend manifests OK!"
+
+      - name: Check required UI hooks are present
+        run: |
+          echo "Checking data-testid hooks declared in BUILDLY.yaml..."
+          # The E2E suite fails on a missing hook too, but only after a full
+          # Docker build -- this names the offender in seconds.
+          missing=0
+          for hook in app-root primary-action panel; do
+            if grep -rq "$hook" src/; then
+              echo "  found: $hook"
+            else
+              echo "  MISSING: $hook (declared in BUILDLY.yaml ui_hooks)"
+              missing=1
+            fi
+          done
+          exit $missing

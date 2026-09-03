@@ -1,19 +1,34 @@
-# ForgeAppTemplate .gitignore
+# ForgeFETemplate .gitignore
 
-# Python
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build output
+# Cover the conventions of every framework this template targets:
+# Vite/Vue "dist", CRA "build", Next static export "out", Angular "dist/<app>".
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.angular/
+.vite/
+*.tsbuildinfo
+
+# Python -- the Robot Framework / Playwright TEST RUNNER only.
+# The application itself has no Python dependency.
 .venv/
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-*.egg-info/
-dist/
-build/
 
 # Forge state files
 .forge-port
-.forge-python.pid
+.forge-node.pid
+.forge-node.log
 
 # Buildly / Buster AI-native workflow state
 # Volatile machine state is ignored; human-readable docs under
@@ -22,7 +37,10 @@ build/
 .buildly/adoption/*.json
 
 # Test artifacts (reports, logs)
-artifacts/
+# Ignore the contents, not the directory -- git cannot re-include a file whose
+# parent directory is excluded, and the .gitkeep files below must stay tracked.
+artifacts/*
+coverage/
 
 # IDE
 .idea/
@@ -42,7 +60,6 @@ Thumbs.db
 
 # Logs
 *.log
-npm-debug.log*
 
 # Keep tracked directories
 !artifacts/.gitkeep

@@ -1,5 +1,5 @@
 *** Settings ***
-Documentation     Smoke tests for ForgeAppTemplate
+Documentation     Smoke tests for ForgeFETemplate
 ...               Verifies basic UI functionality using Browser library (Playwright)
 Library           Browser
 Suite Setup       Open Browser To App

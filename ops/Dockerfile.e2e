@@ -1,9 +1,9 @@
-# ForgeAppTemplate E2E Test Container
+# ForgeFETemplate E2E Test Container
 # Robot Framework with Browser library (Playwright-backed)
 FROM python:3.12-slim
 
 LABEL maintainer="Buildly Marketplace <marketplace@buildly.io>"
-LABEL description="ForgeAppTemplate E2E test runner with Robot Framework Browser"
+LABEL description="ForgeFETemplate E2E test runner with Robot Framework Browser"
 
 # Install OS dependencies for headless Chromium/Playwright
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 #
-# ops/startup.sh - Single entrypoint for ForgeAppTemplate app control
+# ops/startup.sh - Single entrypoint for ForgeFETemplate app control
 #
-# Usage: ./ops/startup.sh <start|stop|restart|status|help> <python|docker> [--port PORT]
+# Usage: ./ops/startup.sh <start|stop|restart|status|help> <node|docker> [--port PORT]
 #
-# This script manages the ForgeAppTemplate server in both Python and Docker modes.
+# This script manages the ForgeFETemplate dev server in both node and Docker modes.
+# The node mode runs whatever "npm run dev" is wired to, so the same contract
+# works for React, React Native web, Angular, Vue or anything else.
 # It auto-selects an available port in the range 8000-9000 if no port is specified.
 #
 
@@ -14,8 +16,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PORT_FILE="$REPO_ROOT/.forge-port"
-PID_FILE="$REPO_ROOT/.forge-python.pid"
-LOG_FILE="$REPO_ROOT/.forge-python.log"
+PID_FILE="$REPO_ROOT/.forge-node.pid"
+LOG_FILE="$REPO_ROOT/.forge-node.log"
 PORT_MIN=8000
 PORT_MAX=9000
 DEFAULT_PORT=8000
@@ -60,21 +62,20 @@ is_port_free() {
         return 0  # Port is free
     fi
     
-    # Fallback: use Python socket bind check
-    if python3 -c "
-import socket
-import sys
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-try:
-    s.bind(('127.0.0.1', $port))
-    s.close()
-    sys.exit(0)
-except:
-    sys.exit(1)
+    # Fallback: a node bind check, so this script needs no Python at all.
+    if command -v node &>/dev/null; then
+        if node -e "
+const net = require('net');
+const srv = net.createServer();
+srv.once('error', () => process.exit(1));
+srv.once('listening', () => srv.close(() => process.exit(0)));
+srv.listen($port, '127.0.0.1');
 " 2>/dev/null; then
-        return 0  # Port is free
+            return 0  # Port is free
+        fi
+        return 1  # Port is in use
     fi
-    return 1  # Port is in use
+    return 0  # Cannot check -- assume free
 }
 
 # Find first available port in range
@@ -150,10 +151,10 @@ get_docker_compose_cmd() {
 }
 
 # -----------------------------------------------------------------------------
-# Python mode functions
+# Node mode functions
 # -----------------------------------------------------------------------------
 
-python_is_running() {
+node_is_running() {
     if [[ -f "$PID_FILE" ]]; then
         local pid
         pid=$(cat "$PID_FILE")
@@ -164,10 +165,10 @@ python_is_running() {
     return 1
 }
 
-python_start() {
+node_start() {
     local port=$1
     
-    if python_is_running; then
+    if node_is_running; then
         local pid=$(cat "$PID_FILE")
         local saved_port=$(get_saved_port)
         log_warn "Server already running (PID: $pid) on port $saved_port"
@@ -179,10 +180,17 @@ python_start() {
     port=$(get_or_find_port "$port") || return 1
     save_port "$port"
     
-    log_info "Starting Python server on port $port..."
-    
+    log_info "Starting dev server on port $port..."
+
     cd "$REPO_ROOT"
-    nohup python3 src/server.py --port "$port" </dev/null > "$LOG_FILE" 2>&1 &
+    if [ ! -d node_modules ]; then
+        log_info "Installing dependencies (first run)..."
+        npm ci --silent 2>&1 | tail -3 || npm install --silent 2>&1 | tail -3
+    fi
+    # PORT is exported as well as passed on the command line: Vite takes
+    # --port, CRA and Angular read the env var. Covering both means this
+    # script never needs to know which framework the app uses.
+    PORT="$port" nohup npm run dev -- --port "$port" </dev/null > "$LOG_FILE" 2>&1 &
     local pid=$!
     echo "$pid" > "$PID_FILE"
     disown "$pid" 2>/dev/null || true
@@ -210,8 +218,8 @@ python_start() {
     fi
 }
 
-python_stop() {
-    if ! python_is_running; then
+node_stop() {
+    if ! node_is_running; then
         log_info "Server is not running"
         rm -f "$PID_FILE"
         return 0
@@ -238,14 +246,14 @@ python_stop() {
     log_success "Server stopped"
 }
 
-python_restart() {
+node_restart() {
     local port=$1
-    python_stop
-    python_start "$port"
+    node_stop
+    node_start "$port"
 }
 
-python_status() {
-    if python_is_running; then
+node_status() {
+    if node_is_running; then
         local pid=$(cat "$PID_FILE")
         local port=$(get_saved_port)
         log_success "Server is running"
@@ -349,7 +357,7 @@ docker_status() {
 
 show_help() {
     cat << 'EOF'
-ForgeAppTemplate Control Script
+ForgeFETemplate Control Script
 
 USAGE:
     ./ops/startup.sh <command> <mode> [options]
@@ -362,7 +370,7 @@ COMMANDS:
     help        Show this help message
 
 MODES:
-    python      Run using local Python (faster, requires Python 3.x)
+    node        Run the dev server via npm (faster, requires Node 20+)
     docker      Run using Docker containers (recommended, reproducible)
 
 OPTIONS:
@@ -372,24 +380,24 @@ EXAMPLES:
     # Start with Docker (recommended)
     ./ops/startup.sh start docker
 
-    # Start with Python on a specific port
-    ./ops/startup.sh start python --port 8080
+    # Start with node on a specific port
+    ./ops/startup.sh start node --port 8080
 
     # Check status
     ./ops/startup.sh status docker
-    ./ops/startup.sh status python
+    ./ops/startup.sh status node
 
     # Stop the server
-    ./ops/startup.sh stop python
+    ./ops/startup.sh stop node
 
 STATE FILES:
     .forge-port         Stores the last used port
-    .forge-python.pid   Stores the Python server PID
-    .forge-python.log   Stores Python server output
+    .forge-node.pid     Stores the dev server PID
+    .forge-node.log     Stores dev server output
 
 NOTES:
     - Docker mode requires Docker Desktop or Docker Engine with Compose
-    - Python mode requires Python 3.x
+    - node mode requires Node 20+ and an npm "dev" script
     - Port auto-selection finds the first free port in range 8000-9000
     - On restart, the same port is reused if still available
 
@@ -411,7 +419,7 @@ main() {
             start|stop|restart|status|help)
                 command="$1"
                 ;;
-            python|docker)
+            node|docker)
                 mode="$1"
                 ;;
             --port)
@@ -438,19 +446,19 @@ main() {
     
     # Validate mode
     if [[ -z "$mode" ]]; then
-        log_error "Mode required: python or docker"
+        log_error "Mode required: node or docker"
         echo "Run './ops/startup.sh help' for usage"
         exit 1
     fi
     
     # Execute command
     case "$mode" in
-        python)
+        node)
             case "$command" in
-                start)   python_start "$port" ;;
-                stop)    python_stop ;;
-                restart) python_restart "$port" ;;
-                status)  python_status ;;
+                start)   node_start "$port" ;;
+                stop)    node_stop ;;
+                restart) node_restart "$port" ;;
+                status)  node_status ;;
             esac
             ;;
         docker)

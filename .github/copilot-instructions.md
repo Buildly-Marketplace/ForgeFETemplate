@@ -68,17 +68,17 @@
 ## Code Generation
 
 ### Do
-```python
-# Clear, explicit code
-def calculate_total(items: list[Item]) -> Decimal:
-    """Calculate the total price of items."""
-    return sum(item.price for item in items)
+```js
+/** Total price of every item in the cart, in minor units. */
+export function calculateTotal(items) {
+  return items.reduce((total, item) => total + item.priceCents, 0);
+}
 ```
 
 ### Don't
-```python
-# Clever but unclear
-calc = lambda x: sum(i.p for i in x)
+```js
+// Clever but unclear
+const calc = (x) => x.reduce((a, i) => a + i.p, 0);
 ```
 
 ---
@@ -91,17 +91,32 @@ When generating code, also suggest:
 - Integration tests if applicable
 
 ### Test Template
-```python
-def test_function_does_expected_thing():
-    # Arrange
-    input_data = ...
-    expected = ...
-    
-    # Act
-    result = function_under_test(input_data)
-    
-    # Assert
-    assert result == expected
+```js
+it('does the expected thing', () => {
+  // Arrange
+  const input = ...;
+  const expected = ...;
+
+  // Act
+  const result = functionUnderTest(input);
+
+  // Assert
+  expect(result).toEqual(expected);
+});
+```
+
+Component tests assert on the same `data-testid` hooks the E2E suite uses, so
+a rename breaks a fast unit test before it breaks marketplace CI:
+
+```jsx
+it('reveals the panel when the primary action is clicked', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+
+  await user.click(screen.getByTestId('primary-action'));
+
+  expect(screen.getByTestId('panel')).toBeVisible();
+});
 ```
 
 ---
@@ -114,22 +129,19 @@ Suggest documentation updates when:
 - Modifying configuration
 - Updating dependencies
 
-### Docstring Format
-```python
-def function_name(param1: str, param2: int) -> bool:
-    """
-    Brief description of what the function does.
-    
-    Args:
-        param1: Description of param1
-        param2: Description of param2
-        
-    Returns:
-        Description of return value
-        
-    Raises:
-        ExceptionType: When this happens
-    """
+### Doc Comment Format
+```js
+/**
+ * Brief description of what the function does.
+ *
+ * @param {string} param1 - Description of param1
+ * @param {number} param2 - Description of param2
+ * @returns {boolean} Description of the return value
+ * @throws {TypeError} When param1 is not a string
+ */
+function functionName(param1, param2) {
+  // ...
+}
 ```
 
 ---
@@ -165,12 +177,18 @@ devdocs/       # Development documentation
 
 ## Language-Specific
 
-### Python
-- Use type hints
-- Follow PEP 8
-- Prefer f-strings
-- Use pathlib for paths
-- Handle exceptions explicitly
+### JavaScript / TypeScript
+- Prefer `const`; reach for `let` only when reassigning
+- Use optional chaining `?.` and nullish coalescing `??`
+- Keep modules small and export named symbols, not default grab-bags
+- `async`/`await` over promise chains, and always handle the rejection
+- In TypeScript, annotate exported signatures; let inference handle locals
+
+### Components
+- One component per file, named for the file
+- Keep the `data-testid` hooks declared in `BUILDLY.yaml` intact -- E2E depends on them
+- Derive state during render instead of syncing it in an effect
+- An effect that sets state it also depends on is an infinite loop; drop the dependency or restructure
 
 ### HTML/CSS
 - Use semantic HTML

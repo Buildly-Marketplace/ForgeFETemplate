@@ -1,0 +1,87 @@
+:root {
+  --forge-bg: #0f1117;
+  --forge-surface: #171a23;
+  --forge-border: #262b38;
+  --forge-text: #e8eaf0;
+  --forge-muted: #949bad;
+  --forge-accent: #4f7cff;
+  --forge-accent-hover: #3f6bee;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--forge-bg);
+  color: var(--forge-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.55;
+}
+
+.app {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+
+.app__title {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+.app__subtitle {
+  margin: 0 0 2rem;
+  color: var(--forge-muted);
+}
+
+.app__action {
+  background: var(--forge-accent);
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.app__action:hover {
+  background: var(--forge-accent-hover);
+}
+
+.app__action:focus-visible {
+  outline: 2px solid var(--forge-accent);
+  outline-offset: 3px;
+}
+
+.app__panel {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--forge-surface);
+  border: 1px solid var(--forge-border);
+  border-radius: 0.75rem;
+}
+
+.app__panel h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+}
+
+.app__panel ul {
+  margin-bottom: 0;
+  padding-left: 1.1rem;
+  color: var(--forge-muted);
+}
+
+.app__panel code {
+  color: var(--forge-text);
+  background: #0b0d13;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}

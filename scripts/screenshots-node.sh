@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
-# scripts/screenshots-python.sh
-# Generate canonical marketplace screenshots using local Python
+# scripts/screenshots-node.sh
+# Generate canonical marketplace screenshots against a local dev server.
 #
 # Prerequisites:
-# 1. App must be running: ./ops/startup.sh start python
-# 2. Python 3.x must be installed
+#   1. The app is running: ./ops/startup.sh start node
+#   2. Python 3.x is available for the Robot/Playwright runner (the app itself
+#      does not need it -- see ./scripts/screenshots-docker.sh to avoid it).
 #
 
 set -e
@@ -17,7 +18,6 @@ PORT_FILE="$REPO_ROOT/.forge-port"
 REQUIREMENTS="$REPO_ROOT/tests/robot/requirements.txt"
 SCREENSHOT_DIR="$REPO_ROOT/marketplace/screenshots"
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -29,7 +29,6 @@ log_success() { echo -e "${GREEN}[screenshots]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[screenshots]${NC} $1"; }
 log_error() { echo -e "${RED}[screenshots]${NC} $1" >&2; }
 
-# Determine port
 if [[ -f "$PORT_FILE" ]]; then
     PORT=$(cat "$PORT_FILE")
 else
@@ -38,40 +37,33 @@ fi
 
 BASE_URL="http://localhost:$PORT"
 
-# Check if app is running
 log_info "Checking if app is running at $BASE_URL..."
 if ! curl -s "$BASE_URL" &>/dev/null; then
     log_error "App is not running at $BASE_URL"
-    log_info "Start it with: ./ops/startup.sh start python"
+    log_info "Start it with: ./ops/startup.sh start node"
     exit 1
 fi
 log_success "App is running"
 
-# Set up virtual environment
 if [[ ! -d "$VENV_DIR" ]]; then
-    log_info "Creating virtual environment..."
+    log_info "Creating virtual environment for the test runner..."
     python3 -m venv "$VENV_DIR"
 fi
 
-# Activate venv
 source "$VENV_DIR/bin/activate"
 
-# Install dependencies
 log_info "Installing Robot Framework dependencies..."
 pip install -q -r "$REQUIREMENTS"
 
-# Initialize Browser library
 log_info "Initializing Playwright browsers..."
 rfbrowser init 2>/dev/null || {
     log_warn "Browser init had warnings (may be already initialized)"
 }
 
-# Ensure output directories
 mkdir -p "$SCREENSHOT_DIR"
 mkdir -p "$REPO_ROOT/artifacts/robot"
 
-# Run screenshot tests
-log_info "Running screenshot generation against $BASE_URL..."
+log_info "Generating screenshots against $BASE_URL..."
 cd "$REPO_ROOT"
 
 robot \

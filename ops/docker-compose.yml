@@ -1,16 +1,19 @@
-# ForgeAppTemplate Docker Compose Configuration
+# ForgeFETemplate Docker Compose Configuration
 # Provides app and e2e services for development and CI
 
 services:
-  # Application server
+  # Built frontend, served as static files by nginx
   app:
     build:
       context: ..
       dockerfile: ops/Dockerfile.app
+      args:
+        # Override if your framework does not build to dist/
+        BUILD_DIR: ${BUILD_DIR:-dist}
     ports:
       - "${FORGE_PORT:-8000}:8000"
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -28,10 +31,7 @@ services:
     environment:
       - BASE_URL=http://app:8000
     volumes:
-      # Mount test files
       - ../tests/robot:/work/tests/robot:ro
-      # Mount output directories
       - ../artifacts:/work/artifacts
       - ../marketplace/screenshots:/work/marketplace/screenshots
-    # Default command can be overridden via docker compose run
     command: ["robot", "--outputdir", "/work/artifacts", "/work/tests/robot/smoke.robot"]
